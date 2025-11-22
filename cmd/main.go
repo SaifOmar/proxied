@@ -12,6 +12,8 @@ import (
 
 func Exc() {
 	port, url, err := parseArgs()
+	log.Println("PORT: ", port)
+	log.Println("URL: ", url)
 	if err != nil {
 		log.Fatal(err)
 		return
