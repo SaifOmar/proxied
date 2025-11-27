@@ -2,6 +2,8 @@
 go.work
 go.work.sum
 
-./bin
+
+/bin
 .plan.md
+
 
