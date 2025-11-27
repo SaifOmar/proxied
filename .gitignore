@@ -1,9 +1,9 @@
-# Go workspace file
+/bin
+.plan.md
+
 go.work
 go.work.sum
 
 
-/bin
-.plan.md
 
 
