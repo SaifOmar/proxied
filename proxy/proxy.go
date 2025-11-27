@@ -26,16 +26,27 @@ func NewProxy(origin *url.URL) *Proxy {
 	}
 
 }
+func (p *Proxy) makeGet(r *http.Request, rTarget string) (*http.Response, error) {
+	return http.Get("https://" + p.Origin.Hostname() + rTarget)
+}
+func (p *Proxy) makePost(r *http.Request, rTarget string) (*http.Response, error) {
+	return http.Post("https://"+p.Origin.Hostname()+rTarget, "application/json", r.Body)
+}
 
 // TODO: improve
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
+	var errr error
 	var body []byte
 	var status int
 	var headers http.Header
 	rTarget := r.URL.Path
 	rMethod := r.Method
-	// rQuery := r.URL.Query()
+	rQuery := r.URL.Query()
+	if rQuery.Encode() != "" {
+		rTarget = rTarget + "?" + rQuery.Encode()
+	}
+
 	ss := rMethod + ":" + rTarget
 	// path one // cached value and we can get
 	value, ok := GetCache(ss, p)
@@ -49,13 +60,24 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("New target is: ", rTarget)
 		fmt.Println("Making GET request to " + p.Origin.Host)
 
-		resp, err := http.Get("https://" + p.Origin.Hostname() + rTarget)
-		if err != nil {
-			log.Fatalf("Error making GET request: %v", err)
+		var resp *http.Response
+		switch rMethod {
+		case "POST":
+			resp, errr = p.makePost(r, rTarget)
+		default:
+			resp, errr = p.makeGet(r, rTarget)
+		}
+		if errr != nil {
+			log.Fatalf("Error making GET request: %v", errr)
 		}
 
+		var err error
 		body, err = io.ReadAll(resp.Body)
-		defer r.Body.Close()
+		if r.Method == "POST" {
+			log.Println("Method is POST")
+			log.Println("Body is: ", string(body))
+		}
+		defer resp.Body.Close()
 		if err != nil {
 			log.Fatalf("Error reading response body: %v", err)
 		}
@@ -75,7 +97,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	}
 	// write to the client
-	WriteResponseWithHeaders(w, body, status, headers)
+	defer WriteResponseWithHeaders(w, body, status, headers)
 }
 
 func WriteResponseWithHeaders(w http.ResponseWriter, body []byte, status int, headers http.Header) {
